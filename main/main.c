@@ -18,7 +18,7 @@
 #include <dac.h>
 #include <adc.h>
 #include <uart.h>
-#include <PWM.h>
+
 
 
 //init frequency as 5kHz
@@ -27,6 +27,17 @@ int freq = 1000;
 void err(const char *error);
 void bode_inputs(void);
 void bode(float voff, float vsigpp, int samples, int frq_start, int frq_stop);
+void myTask(void *parameter);
+
+void app_main(){
+    
+    init_dac_cos(freq);
+    init_stdin_stdout();
+    invert_dac_output(); /* necessary for sine wave */
+    adc_init();
+    
+    xTaskCreate(myTask, "Arb Task", 1024*3, NULL, 10, NULL);
+}
 
 void myTask(void *parameter){
 
@@ -37,6 +48,7 @@ void myTask(void *parameter){
         input = getchar(); // get char is blocking
 
         switch (input) {
+
             case 'F':
                 toggle_dac_frequency();  
                 break;
@@ -53,16 +65,6 @@ void myTask(void *parameter){
         //read_temp();
         vTaskDelay(500/portTICK_PERIOD_MS);     
     }
-}
-
-void app_main(){
-    
-    init_dac_cos(freq);
-    init_stdin_stdout();
-    invert_dac_output(); /* necessary for sine wave */
-    adc_init();
-    
-    xTaskCreate(myTask, "Arb Task", 1024*3, NULL, 10, NULL);
 }
 
 void err(const char *message){
