@@ -15,18 +15,20 @@
 #include <sdkconfig.h>
 #include <esp_vfs_dev.h>
 
-#include <dac.h>
-#include <adc.h>
-#include <uart.h>
+#include "dac.h"
+#include "adc.h"
+#include "uart.h"
+#include "PWM.h"
 
-
-
-//init frequency as 5kHz
+// TODO: Update frequency inputs to uint32_t types. How fast can the esp go?
+//       Requires a function that parses maximum 32 bit integer.
+//init frequency
 int freq = 1000;
 
 void err(const char *error);
 void bode_inputs(void);
-void bode(float voff, float vsigpp, int samples, int frq_start, int frq_stop);
+void bode(float voff, float vsigpp, int samples, int frq_start, int frq_stop, char signal);
+void clear_input_buffer(void);
 void myTask(void *parameter);
 
 void app_main(){
@@ -35,6 +37,7 @@ void app_main(){
     init_stdin_stdout();
     invert_dac_output(); /* necessary for sine wave */
     adc_init();
+    init_ledc(freq);
     
     xTaskCreate(myTask, "Arb Task", 1024*3, NULL, 10, NULL);
 }
@@ -44,13 +47,17 @@ void myTask(void *parameter){
     char input;
 
     while(1){
-        // fix blocking for instantaneous switch
+  
         input = getchar(); // get char is blocking
 
         switch (input) {
-
-            case 'F':
-                toggle_dac_frequency();  
+            /* update sine freq */
+            case 'D':
+                user_update_dac_frequency();  
+                break;
+            /* update square wave freq*/
+            case 'S':
+                user_update_sw_frequency();
                 break;
 
             case 'B':
@@ -76,7 +83,7 @@ void bode_inputs(){
     /* get user inputs*/
     float voff, vsigpp;
     int samples, frq_start, frq_stop;
-
+    char signal;
 
     printf("\nEnter sample ammount: ");
     scanf("%d", &samples);
@@ -105,15 +112,21 @@ void bode_inputs(){
     }
 
     if((voff < 0) || (vsigpp < 0) || (frq_start < 0) || (frq_stop < 0)){
-        err("\nNo negative inputs.");
-        return;
+        fprintf(stderr, "\nNo negative inputs allowed.");
     }
-    bode(voff, vsigpp, samples, frq_start, frq_stop);
+    clear_input_buffer();
+    /* d for sine, s for square wave sweep.*/
+    printf("\nSignal type: ");
+    if (scanf("%c", &signal) != 1){
+        fprintf(stderr, "Invalid input. Please enter a valid char type. \n");
+    }
+    
+    bode(voff, vsigpp, samples, frq_start, frq_stop, signal);
 
 }
 
 
-void bode(float voff, float vsigpp, int samples, int frq_start, int frq_stop){
+void bode(float voff, float vsigpp, int samples, int frq_start, int frq_stop, char signal){
 
     printf("Begun bode.\n");
     int step = (frq_stop - frq_start) / samples;
@@ -126,24 +139,28 @@ void bode(float voff, float vsigpp, int samples, int frq_start, int frq_stop){
     printf("Step Increment: %i \n Start Frequency: %i \n Stop Frequency: %i \n",step, frq_start, frq_stop);
     /* init reference freq */
     int sample_freq = frq_start;
-    float adc_value =0;
+    float adc_value = 0;
     float mag_db;
     
     while(sample_freq < frq_stop){
         //what is the maximum scale of the signal?
-        adc_value = read_pin();
-
+        adc_value = read_signal_amplitude(sample_freq);
+        printf("\nADC Value: %f ", adc_value);
         if (adc_value == 0){
             perror("ADC read failure. \n");
             return;
 
         }else{  
 
-            mag_db = 20 * log(( adc_value - voff) /vsigpp);        
+            mag_db = 20 * log(( adc_value - voff) / vsigpp);        
             //once complete step frequency
             printf("| Frequency: %i  | Magnitude: %f | \n", sample_freq, mag_db);
-           
-            change_dac_frequency(sample_freq);
+
+            if (signal == 'd'){
+                change_dac_frequency(sample_freq);
+            } else if (signal == 's'){
+                change_sw_frequency(sample_freq);
+            }
         }
         sample_freq += step;
         
@@ -152,5 +169,12 @@ void bode(float voff, float vsigpp, int samples, int frq_start, int frq_stop){
 
     printf("Bode complete. \n");
     /* result to original frequency */
+    
     change_dac_frequency(freq);
+    change_sw_frequency(freq);
+}
+
+void clear_input_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
 }

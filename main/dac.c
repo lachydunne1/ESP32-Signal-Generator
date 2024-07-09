@@ -6,15 +6,16 @@
 #include "driver/dac_cosine.h"  // Include the correct header file
 #include <string.h>
 #define DAC_CHAN DAC_CHAN_0
-#define DAC_ATTEN  DAC_COSINE_ATTEN_DB_6 // 1/2
+#define DAC_ATTEN  DAC_COSINE_ATTEN_DB_18 // 1/2
 #define DAC_CLK DAC_COSINE_CLK_SRC_DEFAULT //only option
 #define DAC_PHASE DAC_COSINE_PHASE_180 // only does 180 or 0
 
+/* output is based about 3.3V, limiting DC offset.*/
 float dc_offset = 2.5;
 dac_cosine_handle_t cos_handle; 
 
 //pass frequency as an argument so that we can easily update externally.
-void init_dac_cos(double DAC_FREQ){
+void init_dac_cos(int DAC_FREQ){
 
     dac_cosine_config_t cos_cfg = {
         .chan_id = DAC_CHAN,
@@ -45,7 +46,8 @@ void init_dac_cos(double DAC_FREQ){
 }
 
 void invert_dac_output(){
-    /* this sets inversion settings on wave form, 
+    /* 
+        this sets inversion settings on wave form, 
         00- invert any bits,
         01- inverts all bits
         10- inverts MSB
@@ -77,16 +79,17 @@ void change_dac_frequency(int frequency) {
 
 }
 
-/* SM logic to change DAC freq through UART*/
-void toggle_dac_frequency(void){
 
-    char buffer[100];
+void user_update_dac_frequency(void){
+
+    printf("\nEnter sine wave frequency: ");
+    char buffer[12];
     //gets is unsafe
     if(fgets(buffer, sizeof(buffer), stdin)){
         buffer[strcspn(buffer, "\n")] = 0; // Remove trailing newline
         int freq = atoi(buffer);
         change_dac_frequency(freq);
-        printf("Attempted frequency update: %i\n", freq);
+        printf("\nAttempted sine wave frequency update: %i", freq);
     }
 
 }

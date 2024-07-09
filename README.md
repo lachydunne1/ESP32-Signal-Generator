@@ -1,6 +1,6 @@
 # ESP32 Signal Generator
 
-This repository contains code for an ESP32-based signal generator. The project demonstrates how to control the DAC and ADC of the ESP32 to generate and read signals.
+This repository contains code for an ESP32-based signal generator. The project demonstrates how to control the DAC and ADC of the ESP32 to generate and read signals for use with the ESP idf.
 
 ## Files
 
@@ -12,7 +12,10 @@ This repository contains code for an ESP32-based signal generator. The project d
 ## Features
 
 - **DAC Control**: Functions to initialize the DAC, change output frequency, and invert output signals.
-- **Frequency Response**: Bode function sweeps user defined frequency range.
+
+- **PWM Control**: Functions intialized PWM, change output frequency.
+
+- **Frequency Response**: Bode function sweeps user defined frequency range for square or sine wave signals.
 
 ## Getting Started
 

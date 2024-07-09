@@ -6,6 +6,7 @@
 #define SAMPLING_FREQ 17500
 
 void adc_init(void);
+float read_signal_amplitude(int fsignal);
 float read_pin(void);
 void readPinTask(void);
 #endif //adc.h
